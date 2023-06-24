@@ -2,7 +2,7 @@
 #include<fstream>
 #include<string>
 #include<Windows.h>
-#include "message.h"
+#include "../Receiver/message.h"
 
 using namespace std;
 
