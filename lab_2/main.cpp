@@ -1,12 +1,12 @@
 #include <iostream>
 #include <Windows.h>
-using std::cout;
-using std::endl;
-using std::cin;
+
 static int n;
 volatile int min;
 volatile int max;
 volatile int arithmeticMean;
+
+// поток для поиска max и min чисел
 DWORD WINAPI min_max(void* iArr)
 {
 	int* arr = (int*)iArr;
@@ -22,9 +22,11 @@ DWORD WINAPI min_max(void* iArr)
 		}
 		Sleep(7);
 	}
-	cout << "Min: " << min << " Max: " << max << endl;
+	std::cout << "Min: " << min << " Max: " << max << std::endl;
 	return 0;
 }
+
+// поток для подсчета арифметического среднего всех чисел
 DWORD WINAPI average(void* iArr)
 {
 	int* arr = (int*)iArr;
@@ -34,21 +36,25 @@ DWORD WINAPI average(void* iArr)
 		Sleep(12);
 	}
 	arithmeticMean = sum / n;
-	cout << "Arithmetic mean: " << arithmeticMean << endl;
+	std::cout << "Arithmetic mean: " << arithmeticMean << std::endl;
 	return 0;
 }
+
 int main() {
 	HANDLE hThread1;
 	DWORD IDThread1;
 	HANDLE hThread2;
 	DWORD IDThread2;
-	cout << "Input size of the array: " << endl;
-	cin >> n;
+	
+	std::cout << "Input size of the array: " << std::endl;
+	std::cin >> n;
 	int* arr = new int[n];
-	cout << "Input the elements of the array:" << endl;
+	
+	std::cout << "Input the elements of the array:" << std::endl;
 	for (int i = 0; i < n; i++) {
 		cin >> arr[i];
 	}
+	// обработка исключений
 	hThread1 = CreateThread(NULL, 0, min_max, arr, 0, &IDThread1);
 	if (hThread1 == NULL) {
 		delete[] arr;
@@ -61,16 +67,22 @@ int main() {
 	}
 	WaitForSingleObject(hThread1, INFINITE);
 	WaitForSingleObject(hThread2, INFINITE);
+
+	// max и min приравниваем к среднему
 	for (int i = 0; i < n; i++) {
 		if (arr[i] == min || arr[i] == max) {
 			arr[i] = arithmeticMean;
 		}
 	}
-	cout << "Changed array: " << endl;
+
+	// выводим изменённый массив
+	std::cout << "Changed array: " << std::endl;
 	for (int i = 0; i < n; i++) {
-		cout << arr[i] << " ";
+		std::cout << arr[i] << " ";
 	}
-	cout << endl;
+	std::cout << std::endl;
+
+	// очищение памяти
 	delete[] arr;
 	return 0;
 }
