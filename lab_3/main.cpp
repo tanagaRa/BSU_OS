@@ -1,12 +1,11 @@
 #include <iostream>
 #include <Windows.h> 
-using std::endl;
-using std::cin;
-using std::cout;
+
 int n;
 HANDLE* hThread;
 int markerCount;
 CRITICAL_SECTION criticalSection;
+
 struct numsThread {
 	int* arr;
 	int num;
@@ -14,8 +13,8 @@ struct numsThread {
 	HANDLE stop = CreateEvent(NULL, TRUE, FALSE, NULL);
 	HANDLE* event = new HANDLE[2];
 };
-DWORD WINAPI marker(LPVOID _arrF)
-{
+
+DWORD WINAPI marker(LPVOID _arrF) {
 	numsThread arrF = *(numsThread*)_arrF;
 	srand(arrF.num);
 	bool check = false;
@@ -31,7 +30,7 @@ DWORD WINAPI marker(LPVOID _arrF)
 			count += 1;
 		}
 		else {
-			cout << arrF.num << " " << count << " " << temp <<endl;			
+			std::cout << arrF.num << " " << count << " " << temp << std::endl;			
 			LeaveCriticalSection(&criticalSection);
 			SetEvent(arrF.stop);
 			if (WaitForMultipleObjects(markerCount, hThread, FALSE, INFINITE) == WAIT_FAILED) {
@@ -50,16 +49,20 @@ DWORD WINAPI marker(LPVOID _arrF)
 	}
 	return 0;
 }
+
 int main() {
 	InitializeCriticalSection(&criticalSection);
 	int* arr;
 	DWORD *dwThread;
-	cin >> n;
+	std::cout << "Input size of the array: " << std::endl;
+	std::cin >> n;
     	arr = new int[n];
+
+	std::cout << "Input the elements of the array:" << std::endl;
 	for (int i = 0; i < n; i++) {
 		arr[i] = 0;
 	}
-	cin >> markerCount;
+	std::cin >> markerCount;
 	hThread = new HANDLE[markerCount];
 	dwThread = new DWORD[markerCount];
 	numsThread* arrF = new numsThread[markerCount];
@@ -79,23 +82,23 @@ int main() {
 	int end = 0;
 	while (end != markerCount) {
 		if (WaitForMultipleObjects(markerCount, hThread, TRUE, INFINITE) == WAIT_FAILED) {
-			cout << "Error." << endl;
+			std::cout << "Error." << std::endl;
 		}		
 		for (int i = 0; i < n; i++) {
-			cout << arr[i] << " ";
+			std::cout << arr[i] << " ";
 		}
-		cout << endl;
+		std::cout << std::endl;
 		bool term = false;
 		while (!term) {
 			int index;
-			cout << "Enter the number of the thread to be completed: ";
-			cin >> index;
+			std::cout << "Enter the number of the thread to be completed: ";
+			std::cin >> index;
 			index--;
 			if (index >= markerCount || index < 0) {
-				cout << "Error input" << endl;
+				std::cout << "Error input" << std::endl;
 			}
 			else if (check[index]) {
-				cout << "This thread was ended." << endl;
+				std::cout << "This thread was ended." << std::endl;
 			}
 			else {
 				SetEvent(arrF[index].event[0]);
@@ -103,7 +106,7 @@ int main() {
 				for (int i = 0; i < n; i++) {
 					cout << arr[i] << " ";
 				}
-				cout << endl;
+				std::cout << std::endl;
 				check[index] = true;
 				term = true;
 				end++;
