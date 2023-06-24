@@ -1,7 +1,7 @@
 #include <iostream>
 #include <conio.h>
 #include <windows.h>
-#include "employee.h"
+#include "../Server/employee.h"
 
 const char pipeName[30] = "\\\\.\\pipe\\pipe_name";
 
