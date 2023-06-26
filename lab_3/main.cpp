@@ -1,131 +1,136 @@
 #include <iostream>
-#include <Windows.h> 
+#include "Windows.h"
 
-int n;
-HANDLE* hThread;
-int markerCount;
-CRITICAL_SECTION criticalSection;
 
-struct numsThread {
-	int* arr;
-	int num;
-	HANDLE start;
-	HANDLE stop = CreateEvent(NULL, TRUE, FALSE, NULL);
-	HANDLE* event = new HANDLE[2];
-};
+CRITICAL_SECTION workingWithAnArray;
+CRITICAL_SECTION userInput;
+HANDLE *hStartThread;
+HANDLE *hThreads;
+HANDLE *hExitThread;
+HANDLE *hImpossibleToWork;
+int *arr;
+int size{0};
+const int delay{5};
+const int tread_flag_quantity{2};
 
-DWORD WINAPI marker(LPVOID _arrF) {
-	numsThread arrF = *(numsThread*)_arrF;
-	srand(arrF.num);
-	bool check = false;
-	int count = 0;
-	while(!check) {
-		int temp = rand();
-		temp = temp % n;
-		EnterCriticalSection(&criticalSection);
-		if (arrF.arr[temp] == 0) {
-			Sleep(5);
-			arrF.arr[temp] = arrF.num;
-			Sleep(5);
-			count += 1;
-		}
-		else {
-			std::cout << arrF.num << " " << count << " " << temp << std::endl;			
-			LeaveCriticalSection(&criticalSection);
-			SetEvent(arrF.stop);
-			if (WaitForMultipleObjects(markerCount, hThread, FALSE, INFINITE) == WAIT_FAILED) {
-				cout << "Error." << endl;
-			}
-			int k = WaitForMultipleObjects(2, arrF.event, FALSE, INFINITE) - WAIT_OBJECT_0;
-			if (k == 0) {
-				check = true;
-			}
-		}
-	}
-	for (int i = 0; i < n; i++) {
-		if (arrF.arr[i] == arrF.num) {
-			arrF.arr[i] = 0;
-		}
-	}
-	return 0;
+
+DWORD WINAPI marker(int _threadNum) {
+    WaitForSingleObject(hStartThread[(int) _threadNum], INFINITE);
+
+    int threadNum{(int) _threadNum};
+    int randomNum{0};
+    int markedElements{0};
+    HANDLE hThreadFlags[]{hStartThread[threadNum], hExitThread[threadNum]};
+    DWORD dFlagNum{0};
+
+
+    while (true) {
+        randomNum = rand() % size;
+        if (arr[randomNum] == 0) {
+            EnterCriticalSection(&workingWithAnArray);
+            Sleep(delay);
+            arr[randomNum] = threadNum + 1;
+            markedElements++;
+            Sleep(delay);
+            LeaveCriticalSection(&workingWithAnArray);
+        } else {
+            EnterCriticalSection(&workingWithAnArray);
+            std::cout << "Thread number: " << threadNum + 1 << std::endl;
+            std::cout << "Number of marked elements: " << markedElements << std::endl;
+            std::cout << "Index impossible to mark: " << randomNum << std::endl;
+            LeaveCriticalSection(&workingWithAnArray);
+            SetEvent(hImpossibleToWork[threadNum]);
+            ResetEvent(hStartThread[threadNum]);
+            dFlagNum = WaitForMultipleObjects(tread_flag_quantity, hThreadFlags, FALSE, INFINITE);
+            if (dFlagNum == WAIT_OBJECT_0 + 1) {
+                EnterCriticalSection(&workingWithAnArray);
+                for (std::size_t i = 0; i < size; i++)
+                    if (arr[i] == threadNum + 1)
+                        arr[i] = 0;
+                LeaveCriticalSection(&workingWithAnArray);
+                ExitThread(0);
+            } else {
+                ResetEvent(hImpossibleToWork[threadNum]);
+                continue;
+            }
+        }
+    }
 }
 
-int main() {
-	InitializeCriticalSection(&criticalSection);
-	int* arr;
-	DWORD *dwThread;
-	std::cout << "Input size of the array: " << std::endl;
-	std::cin >> n;
-    	arr = new int[n];
 
-	std::cout << "Input the elements of the array:" << std::endl;
-	for (int i = 0; i < n; i++) {
-		arr[i] = 0;
-	}
-	std::cin >> markerCount;
-	hThread = new HANDLE[markerCount];
-	dwThread = new DWORD[markerCount];
-	numsThread* arrF = new numsThread[markerCount];
-	bool* check = new bool[markerCount];
-	HANDLE st = CreateEvent(NULL, TRUE, FALSE, NULL);
-	HANDLE* stop = new HANDLE[markerCount];
-	for (int i = 0; i < markerCount; i++) {
-		arrF[i].arr = arr;
-		arrF[i].num = i + 1;
-		stop[i] = arrF[i].stop;
-		arrF[i].event[0] = CreateEvent(NULL, FALSE, FALSE, NULL);
-		arrF[i].event[1] = CreateEvent(NULL, FALSE, FALSE, NULL);
-		hThread[i] = CreateThread(NULL, 0, marker, (LPVOID)(&arrF[i]), 0, &dwThread[i-1]);
-		check[i] = false;
-	}
-		SetEvent(st);
-	int end = 0;
-	while (end != markerCount) {
-		if (WaitForMultipleObjects(markerCount, hThread, TRUE, INFINITE) == WAIT_FAILED) {
-			std::cout << "Error." << std::endl;
-		}		
-		for (int i = 0; i < n; i++) {
-			std::cout << arr[i] << " ";
-		}
-		std::cout << std::endl;
-		bool term = false;
-		while (!term) {
-			int index;
-			std::cout << "Enter the number of the thread to be completed: ";
-			std::cin >> index;
-			index--;
-			if (index >= markerCount || index < 0) {
-				std::cout << "Error input" << std::endl;
-			}
-			else if (check[index]) {
-				std::cout << "This thread was ended." << std::endl;
-			}
-			else {
-				SetEvent(arrF[index].event[0]);
-				WaitForSingleObject(hThread[index], INFINITE);
-				for (int i = 0; i < n; i++) {
-					cout << arr[i] << " ";
-				}
-				std::cout << std::endl;
-				check[index] = true;
-				term = true;
-				end++;
-			}
-		}
-		for (int i = 0; i < markerCount; i++) {
-			if (!check[i]) {
-				ResetEvent(arrF[i].stop);
-				SetEvent(arrF[i].event[1]);
-			}
-		}
-	}
-	CloseHandle(stop);
-	for (int i = 0; i < markerCount; i++) {
-		CloseHandle(hThread[i]);
-		CloseHandle(stop[i]);
-		CloseHandle(arrF[i].event[0]);
-		CloseHandle(arrF[i].event[1]);
-	}
-	DeleteCriticalSection(&criticalSection);
-	return 0;
+int main() {
+    int threadsQuantity{0};
+    int threadToTerminate{0};
+    int terminatedThreads{0};
+    bool *isTerminated{nullptr};
+
+    InitializeCriticalSection(&workingWithAnArray);
+    InitializeCriticalSection(&userInput);
+
+    std::cout << "Input size of array: ";
+    std::cin >> size;
+    arr = new int[size]{};
+    std::cout << "Input number of threads: ";
+    std::cin >> threadsQuantity;
+
+    hThreads = new HANDLE[threadsQuantity];
+    hExitThread = new HANDLE[threadsQuantity];
+    hImpossibleToWork = new HANDLE[threadsQuantity];
+    hStartThread = new HANDLE[threadsQuantity];
+    isTerminated = new bool[threadsQuantity]{};
+
+    for (std::size_t i = 0; i < threadsQuantity; i++) {
+        hThreads[i] = CreateThread(NULL, 1, reinterpret_cast<LPTHREAD_START_ROUTINE>(marker), (LPVOID) (i), NULL, NULL);
+        hStartThread[i] = CreateEvent(NULL, TRUE, FALSE,NULL);
+        hExitThread[i] = CreateEvent(NULL, TRUE, FALSE,NULL);
+        hImpossibleToWork[i] = CreateEvent(NULL, TRUE, FALSE,NULL);
+    }
+
+    while (terminatedThreads != threadsQuantity) {
+
+        for (std::size_t i = 0; i < threadsQuantity; i++)
+            if (!isTerminated[i]) {
+                ResetEvent(hImpossibleToWork[i]);
+                SetEvent(hStartThread[i]);
+            }
+
+        WaitForMultipleObjects(threadsQuantity, hImpossibleToWork, TRUE, INFINITE);
+
+        EnterCriticalSection(&workingWithAnArray);
+        std::cout << "ARRAY: ";
+        for (std::size_t i = 0; i < size; i++)
+            std::cout << arr[i] << ' ';
+        std::cout << std::endl;
+        LeaveCriticalSection(&workingWithAnArray);
+
+        std::cout << "thread to terminate: ";
+        std::cin >> threadToTerminate;
+        if (isTerminated[threadToTerminate - 1])
+            std::cout << "THIS THREAD HAS BEEN TERMINATED." << std::endl;
+        else {
+            isTerminated[threadToTerminate - 1] = true;
+            terminatedThreads++;
+            SetEvent(hExitThread[threadToTerminate - 1]);
+            WaitForSingleObject(hThreads[threadToTerminate - 1], INFINITE);
+            CloseHandle(hThreads[threadToTerminate - 1]);
+            CloseHandle(hExitThread[threadToTerminate - 1]);
+            CloseHandle(hStartThread[threadToTerminate - 1]);
+        }
+
+        EnterCriticalSection(&workingWithAnArray);
+        std::cout << "Array: ";
+        for (std::size_t i = 0; i < size; i++)
+            std::cout << arr[i] << ' ';
+        std::cout << std::endl;
+        LeaveCriticalSection(&workingWithAnArray);
+    }
+
+    delete arr;
+    arr = nullptr;
+    delete isTerminated;
+    isTerminated = nullptr;
+    for (std::size_t i = 0; i < threadsQuantity; i++)
+        CloseHandle(hImpossibleToWork[i]);
+
+    std::cout << "ALL THREADS HAS BEEN TERMINATED." << std::endl;
 }
