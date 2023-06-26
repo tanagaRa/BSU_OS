@@ -52,7 +52,7 @@ int main() {
 	
 	std::cout << "Input the elements of the array:" << std::endl;
 	for (int i = 0; i < n; i++) {
-		cin >> arr[i];
+		std::cin >> arr[i];
 	}
 	// обработка исключений
 	hThread1 = CreateThread(NULL, 0, min_max, arr, 0, &IDThread1);
